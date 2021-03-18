@@ -272,14 +272,11 @@ def _gen_includes_impl(ctx):
     compilation_context = cc_common.create_compilation_context(
             includes=depset(includes))
 
-    providers = []
-
-    providers.append(CcInfo(compilation_context=compilation_context))
-
-    # objc_library deps requires an ObjcProvider
-    providers.append(apple_common.new_objc_provider())
-
-    return providers
+    return [
+        CcInfo(compilation_context=compilation_context),
+        # objc_library deps requires an ObjcProvider
+        apple_common.new_objc_provider()
+    ]
 
 _gen_includes = rule(
     implementation=_gen_includes_impl,
@@ -327,10 +324,13 @@ def _make_headermap_impl(ctx):
 
     # Extract propagated headermaps
     for hdr_provider in ctx.attr.deps:
-        if not hasattr(hdr_provider, "objc"):
-            continue
+        hdrs = []
 
-        hdrs = hdr_provider.objc.direct_headers
+        if CcInfo in hdr_provider:
+            hdrs.extend(hdr_provider[CcInfo].compilation_context.headers.to_list())
+
+        if hasattr(hdr_provider, "objc"):
+            hdrs.extend(hdr_provider.objc.direct_headers)
 
         for hdr in hdrs:
             if hdr.path.endswith(".hmap"):
